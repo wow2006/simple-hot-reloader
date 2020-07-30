@@ -5,3 +5,17 @@ add_library(
   library.cpp
 )
 
+target_link_libraries(
+  hot-reload-lib
+  PRIVATE
+  SDL2::SDL2
+)
+
+set_target_properties(
+  hot-reload-lib
+  PROPERTIES
+  CXX_EXTENSIONS OFF
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+)
+
