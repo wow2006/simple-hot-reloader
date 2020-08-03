@@ -11,8 +11,8 @@ struct GameData {
   bool running = false;
   bool reload  = false;
 
-  int step = 40;
-  int width = 800;
+  int step   = 40;
+  int width  = 800;
   int height = 600;
 
   SDL_Color backgroundColor = SDL_Color{16, 16, 32, SDL_ALPHA_OPAQUE};
@@ -32,6 +32,8 @@ struct GameData {
     SDL_Point{0, height},
     SDL_Point{0, 0}
   };
+
+  std::array<SDL_Rect, 8> apples;
 
 };
 

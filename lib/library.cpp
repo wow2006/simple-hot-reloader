@@ -43,7 +43,14 @@ void processInput(GameData *pData) {
   }
 }
 
-void update(GameData *pData) {}
+void update(GameData *pData) {
+  for(auto& rect : pData->apples) {
+    rect.y += 1;
+    if(rect.y > pData->height) {
+      rect.y = 1;
+    }
+  }
+}
 
 inline void drawBackground(SDL_Renderer *pRenderer, const GameData *pData) {
   SDL_SetRenderDrawColor(pRenderer, pData->backgroundColor.r,
@@ -69,6 +76,15 @@ inline void drawGrid(SDL_Renderer *pRenderer, const GameData *pData) {
   }
 }
 
+inline void drawApples(SDL_Renderer *pRenderer, const GameData *pData) {
+  for(const auto& rect : pData->apples) {
+    auto renderRect = rect;
+    const auto position = rect.y / pData->step;
+    renderRect.y        = position * pData->step;
+    SDL_RenderCopy(pRenderer, pData->pApple, nullptr, &renderRect);
+  }
+}
+
 inline void drawSnake(SDL_Renderer *pRenderer, const GameData *pData) {
   const SDL_Rect rect = {pData->currentX, pData->currentY, pData->step - 1,
                          pData->step - 1};
@@ -90,6 +106,7 @@ inline void drawSnake(SDL_Renderer *pRenderer, const GameData *pData) {
 void render(SDL_Renderer *pRenderer, const GameData *pData) {
   drawBackground(pRenderer, pData);
   drawGrid(pRenderer, pData);
+  drawApples(pRenderer, pData);
   drawSnake(pRenderer, pData);
 
   SDL_RenderPresent(pRenderer);

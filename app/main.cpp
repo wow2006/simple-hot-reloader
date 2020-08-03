@@ -1,6 +1,7 @@
 // STL
 #include <string>
 #include <vector>
+#include <random>
 #include <cstdlib>
 #include <iostream>
 // SDL2
@@ -131,6 +132,17 @@ int main(int argc, char *argv[]) {
   }
   gameData.pSnake = pTexture;
 
+  std::mt19937 rng(16);
+  std::uniform_int_distribution<int> gen(0, gameData.width/gameData.step); // uniform, unbiased
+
+  for(auto& rect : gameData.apples) {
+    const auto index    = gen(rng) * gameData.step;
+    rect = {
+      index, 1,
+      gameData.step - 1, gameData.step - 1
+    };
+  }
+
   constexpr auto FPS = 60.F;
   constexpr auto FrameDelay = 1000.F / FPS;
   uint32_t frameStart = 0;
@@ -157,9 +169,11 @@ int main(int argc, char *argv[]) {
       SDL_Delay(FrameDelay - frameTime);
     }
     frameTime = SDL_GetTicks() - frameStart;
-    //std::cout << "\rFrame time : " << frameTime << " ms, " << 1000.F / static_cast<float>(frameTime);
+    std::cout << "\rFrame time : " << frameTime << " ms, " << 1000.F / static_cast<float>(frameTime);
   }
 
+  SDL_DestroyTexture(gameData.pApple);
+  SDL_DestroyTexture(gameData.pSnake);
   SDL_DestroyRenderer(pRenderer);
   SDL_DestroyWindow(pWindow);
   SDL_Quit();
