@@ -64,7 +64,14 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  WatchFile file({"/home/ahussein/Documents/sourceCode/cpp/SIDE/hotreload/src/lib/library.cpp"});
+  bool bReload  = true;
+  WatchFile file({
+      {"/home/ahussein/Documents/sourceCode/cpp/SIDE/hotreload/src/lib/library.cpp", [&bReload](){
+        if(std::system("ninja") == 0) {
+          bReload = true;
+        }
+      }}
+  });
 
   SDL_LogSetOutputFunction(LogOutputFunction, nullptr);
 
@@ -84,7 +91,6 @@ int main(int argc, char *argv[]) {
   uint32_t frameStart = 0;
   int32_t frameTime = 0;
 
-  bool bReload  = true;
   bool bRunning = true;
   while (bRunning) {
     frameStart = SDL_GetTicks();

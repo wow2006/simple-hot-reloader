@@ -1,0 +1,7 @@
+- [x] Simple hotreload.
+- [x] Force to reload using `space`.
+- [x] Export `upate`, `process` and `render` functions to DLL.
+- [x] Drawing a grid.
+- [x] Adding a watch file.
+- [x] Adding a thread worker.
+- [x] Adding a callback per file.
