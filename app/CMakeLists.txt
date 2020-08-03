@@ -11,6 +11,7 @@ target_link_libraries(
   PUBLIC
   SDL2::SDL2
   fmt::fmt-header-only
+  SDL2::Image
 )
 
 set_target_properties(

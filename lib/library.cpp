@@ -3,84 +3,84 @@
 #include <iostream>
 // SDL2
 #include <SDL2/SDL.h>
-
-constexpr auto cStep = 40;
-constexpr auto cWidth = 800;
-constexpr auto cHeight = 600;
-constexpr auto cBackgroundColor = SDL_Color{16, 16, 32, SDL_ALPHA_OPAQUE};
-constexpr auto cForgroundColor  = SDL_Color{128, 128, 128, SDL_ALPHA_OPAQUE};
-
-constexpr std::array<SDL_Point, 5> borders {
-  SDL_Point{0, 0},
-  SDL_Point{cWidth, 0},
-  SDL_Point{cWidth, cHeight},
-  SDL_Point{0, cHeight},
-  SDL_Point{0, 0}
-};
+// Internal
+#include "library.hpp"
 
 extern "C" {
 
-void processInput(bool& bRunning, bool& bReload) {
+void processInput(GameData *pData) {
   SDL_Event event;
   while(SDL_PollEvent(&event)) {
     switch(event.type) {
       case SDL_QUIT: {
-        bRunning = false;
+        pData->running = false;
         break;
       }
-
       case SDL_KEYDOWN: {
         switch(event.key.keysym.sym) {
           case SDLK_SPACE:
-            bReload = true;
+            pData->reload = true;
+            break;
+          case SDLK_d:
+            pData->currentX += pData->step;
+            break;
+          case SDLK_a:
+            pData->currentX -= pData->step;
+            break;
+          case SDLK_w:
+            pData->currentY -= pData->step;
+            break;
+          case SDLK_s:
+            pData->currentY += pData->step;
             break;
         }
       }
-
     }
   }
 }
 
-void update() {}
+void update(GameData *pData) {}
 
-void render(SDL_Renderer* pRenderer) {
+void render(SDL_Renderer* pRenderer, const GameData *pData) {
   SDL_SetRenderDrawColor(pRenderer,
-    cBackgroundColor.r,
-    cBackgroundColor.g,
-    cBackgroundColor.b,
-    cBackgroundColor.a
+    pData->backgroundColor.r,
+    pData->backgroundColor.g,
+    pData->backgroundColor.b,
+    pData->backgroundColor.a
   );
 
   SDL_RenderClear(pRenderer);
   {
     SDL_SetRenderDrawColor(
       pRenderer,
-      cForgroundColor.r,
-      cForgroundColor.g,
-      cForgroundColor.b,
-      cForgroundColor.a
+      pData->forgroundColor.r,
+      pData->forgroundColor.g,
+      pData->forgroundColor.b,
+      pData->forgroundColor.a
     );
 
-    SDL_RenderDrawLines(pRenderer, borders.data(), borders.size());
+    SDL_RenderDrawLines(pRenderer, pData->borders.data(), pData->borders.size());
 
-    for(uint32_t j = cStep; j < cHeight; j += cStep) {
+    for(uint32_t j = pData->step; j < pData->height; j += pData->step) {
       SDL_RenderDrawLine(
         pRenderer,
         0, j,
-        cWidth, j
+        pData->width, j
       );
     }
 
-    for(uint32_t i = cStep; i < cWidth; i += cStep) {
+    for(uint32_t i = pData->step; i < pData->width; i += pData->step) {
       SDL_RenderDrawLine(
         pRenderer,
         i, 0,
-        i, cHeight
+        i, pData->height
       );
     }
+
+    const SDL_Rect rect = { pData->currentX, pData->currentY, pData->step-1, pData->step-1 };
+    SDL_RenderCopy(pRenderer, pData->pApple, nullptr, &rect);
   }
   SDL_RenderPresent(pRenderer);
 }
 
 } // extern "C"
-

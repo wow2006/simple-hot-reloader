@@ -6,6 +6,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 find_package(fmt  REQUIRED)
 find_package(SDL2 REQUIRED)
+find_package(SDL2_image REQUIRED)
 
 add_subdirectory(lib)
 add_subdirectory(app)

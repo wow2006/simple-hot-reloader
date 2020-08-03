@@ -5,8 +5,10 @@
 #include <iostream>
 // SDL2
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
 // Internal
 #include "watchFile.hpp"
+#include "../lib/library.hpp"
 
 namespace SDL {
 constexpr int SUCCESS = 0;
@@ -14,11 +16,14 @@ constexpr int SUCCESS = 0;
 constexpr auto cWidth = 800;
 constexpr auto cHeight = 600;
 
-void (*processInput)(bool &bRunning, bool &bReload);
+using ProcessInputFunc = void (*)(GameData *pData);
+ProcessInputFunc processInput;
 
-void (*update)();
+using UpdateFunc = void (*)(GameData *pData);
+UpdateFunc update;
 
-void (*render)(SDL_Renderer *pRenderer);
+using RendererFunc = void (*)(SDL_Renderer *pRenderer, const GameData *pData);
+RendererFunc renderer;
 
 static void updateDLL() {
   static void *pDLL = nullptr;
@@ -40,9 +45,9 @@ static void updateDLL() {
     throw std::runtime_error("Can not load \"render\"");
   }
   pDLL = pObject;
-  processInput = reinterpret_cast<void(*)(bool&, bool&)>(processInputFunc);
-  update       = reinterpret_cast<void(*)()>(updateFunc);
-  render       = reinterpret_cast<void(*)(SDL_Renderer*)>(renderFunc);
+  processInput = reinterpret_cast<ProcessInputFunc>(processInputFunc);
+  update       = reinterpret_cast<UpdateFunc>(updateFunc);
+  renderer     = reinterpret_cast<RendererFunc>(renderFunc);
 
   const time_t curr_time = time(nullptr);
   const tm *tm_local = localtime(&curr_time);
@@ -58,17 +63,42 @@ void LogOutputFunction(void*           userdata,
   std::cerr << "SDL_Message: " << message << '\n';
 }
 
+static auto loadImage(const char* path, SDL_Renderer *pRenderer) -> SDL_Texture* {
+  auto pImage = IMG_Load(path);
+  if (pImage == nullptr) {
+    fprintf(stderr, "Could not load image: %s\n", IMG_GetError());
+    return nullptr;
+  }
+
+  auto pTexture = SDL_CreateTextureFromSurface(pRenderer, pImage);
+  if(pTexture == nullptr) {
+    fprintf(stderr, "Could not create texture: %s\n", SDL_GetError());
+    return nullptr;
+  }
+
+  SDL_FreeSurface(pImage);
+  return pTexture;
+}
+
 int main(int argc, char *argv[]) {
   if (SDL_Init(SDL_INIT_VIDEO) != SDL::SUCCESS) {
     std::cerr << "Unable to initialize SDL: " << SDL_GetError() << '\n';
     return EXIT_FAILURE;
   }
+  // TODO(Hussein): check for return.
+  const auto imgInit = IMG_Init(IMG_INIT_PNG);
+  if((imgInit & IMG_INIT_PNG) != IMG_INIT_PNG) {
+    std::cerr << "Unable to initialize SDL: " << IMG_GetError() << '\n';
+    return EXIT_FAILURE;
+  }
 
-  bool bReload  = true;
+  GameData gameData;
+  gameData.reload = true;
+
   WatchFile file({
-      {"/home/ahussein/Documents/sourceCode/cpp/SIDE/hotreload/src/lib/library.cpp", [&bReload](){
+      {"/home/ahussein/Documents/sourceCode/cpp/SIDE/hotreload/src/lib/library.cpp", [&gameData](){
         if(std::system("ninja") == 0) {
-          bReload = true;
+          gameData.reload = true;
         }
       }}
   });
@@ -85,6 +115,16 @@ int main(int argc, char *argv[]) {
   }
 
   auto pRenderer = SDL_CreateRenderer(pWindow, 1, SDL_RENDERER_ACCELERATED);
+  if(pRenderer == nullptr) {
+    std::cerr << "Unable to create SDL Renderer: " << SDL_GetError() << '\n';
+    return EXIT_FAILURE;
+  }
+
+  const auto pTexture = loadImage("apple.png", pRenderer);
+  if(pTexture == nullptr) {
+    return EXIT_FAILURE;
+  }
+  gameData.pApple = pTexture;
 
   constexpr auto FPS = 60.F;
   constexpr auto FrameDelay = 1000.F / FPS;
@@ -95,16 +135,18 @@ int main(int argc, char *argv[]) {
   while (bRunning) {
     frameStart = SDL_GetTicks();
     try {
-      if(bReload) {
+      if(gameData.reload) {
         updateDLL();
-        bReload = false;
+        gameData.reload = false;
       }
     } catch(const std::runtime_error& exp) {
       std::cerr << exp.what() << '\n';
     }
-    processInput(bRunning, bReload);
-    update();
-    render(pRenderer);
+
+    processInput(&gameData);
+    update(&gameData);
+    renderer(pRenderer, &gameData);
+
     frameTime = SDL_GetTicks() - frameStart;
     if(FrameDelay > frameTime) {
       SDL_Delay(FrameDelay - frameTime);
