@@ -29,9 +29,10 @@ add_executable(
 target_link_libraries(
   hot-reload-app
   PUBLIC
+  warning
   SDL2::SDL2
-  fmt::fmt-header-only
   SDL2::Image
+  fmt::fmt-header-only
 )
 
 target_compile_definitions(

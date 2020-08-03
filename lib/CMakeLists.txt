@@ -8,6 +8,7 @@ add_library(
 target_link_libraries(
   hot-reload-lib
   PRIVATE
+  warning
   SDL2::SDL2
 )
 
