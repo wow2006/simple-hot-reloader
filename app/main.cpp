@@ -95,8 +95,9 @@ int main(int argc, char *argv[]) {
   GameData gameData;
   gameData.reload = true;
 
+  const auto libraryFilePath = std::filesystem::path(BASE_DIR) / "lib" / "library.cpp";
   WatchFile file({
-      {"/home/ahussein/Documents/sourceCode/cpp/SIDE/hotreload/src/lib/library.cpp", [&gameData](){
+      {libraryFilePath.c_str(), [&gameData](){
         if(std::system("ninja") == 0) {
           gameData.reload = true;
         }
