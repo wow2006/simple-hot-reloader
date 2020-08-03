@@ -2,12 +2,15 @@
 add_executable(
   hot-reload-app
   main.cpp
+  watchFile.cpp
+  workingThread.cpp
 )
 
 target_link_libraries(
   hot-reload-app
   PUBLIC
   SDL2::SDL2
+  fmt::fmt-header-only
 )
 
 set_target_properties(

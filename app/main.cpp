@@ -5,6 +5,8 @@
 #include <iostream>
 // SDL2
 #include <SDL2/SDL.h>
+// Internal
+#include "watchFile.hpp"
 
 namespace SDL {
 constexpr int SUCCESS = 0;
@@ -62,6 +64,8 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
+  WatchFile file({"/home/ahussein/Documents/sourceCode/cpp/SIDE/hotreload/src/lib/library.cpp"});
+
   SDL_LogSetOutputFunction(LogOutputFunction, nullptr);
 
   auto pWindow = SDL_CreateWindow(
@@ -100,7 +104,7 @@ int main(int argc, char *argv[]) {
       SDL_Delay(FrameDelay - frameTime);
     }
     frameTime = SDL_GetTicks() - frameStart;
-    std::cout << "\rFrame time : " << frameTime << " ms, " << 1000.F / static_cast<float>(frameTime);
+    //std::cout << "\rFrame time : " << frameTime << " ms, " << 1000.F / static_cast<float>(frameTime);
   }
 
   SDL_DestroyRenderer(pRenderer);
