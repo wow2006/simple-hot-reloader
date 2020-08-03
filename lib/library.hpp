@@ -4,6 +4,9 @@
 // SDL2
 #include <SDL2/SDL_render.h>
 
+enum Direction : uint8_t { Up, Down, Left, Right };
+
+
 struct GameData {
   bool running = false;
   bool reload  = false;
@@ -17,8 +20,10 @@ struct GameData {
 
   int currentX = 1;
   int currentY = 1;
+  Direction direction = Direction::Up;
 
   SDL_Texture* pApple = nullptr;
+  SDL_Texture* pSnake = nullptr;
 
   std::array<SDL_Point, 5> borders {
     SDL_Point{0, 0},

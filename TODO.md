@@ -5,3 +5,7 @@
 - [x] Adding a watch file.
 - [x] Adding a thread worker.
 - [x] Adding a callback per file.
+- [x] Create a GameData.
+- [x] Adding a snake texture.
+- [x] Control the snake head direction.
+

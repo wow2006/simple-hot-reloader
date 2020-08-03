@@ -64,16 +64,15 @@ void LogOutputFunction(void*           userdata,
 }
 
 static auto loadImage(const char* path, SDL_Renderer *pRenderer) -> SDL_Texture* {
-  auto pImage = IMG_Load(path);
+  const auto pImage = IMG_Load(path);
   if (pImage == nullptr) {
     fprintf(stderr, "Could not load image: %s\n", IMG_GetError());
     return nullptr;
   }
 
-  auto pTexture = SDL_CreateTextureFromSurface(pRenderer, pImage);
+  const auto pTexture = SDL_CreateTextureFromSurface(pRenderer, pImage);
   if(pTexture == nullptr) {
     fprintf(stderr, "Could not create texture: %s\n", SDL_GetError());
-    return nullptr;
   }
 
   SDL_FreeSurface(pImage);
@@ -120,19 +119,25 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  const auto pTexture = loadImage("apple.png", pRenderer);
+  const auto pAppleTexture = loadImage("apple.png", pRenderer);
+  if(pAppleTexture == nullptr) {
+    return EXIT_FAILURE;
+  }
+  gameData.pApple = pAppleTexture;
+
+  const auto pTexture = loadImage("snakeHead.png", pRenderer);
   if(pTexture == nullptr) {
     return EXIT_FAILURE;
   }
-  gameData.pApple = pTexture;
+  gameData.pSnake = pTexture;
 
   constexpr auto FPS = 60.F;
   constexpr auto FrameDelay = 1000.F / FPS;
   uint32_t frameStart = 0;
   int32_t frameTime = 0;
 
-  bool bRunning = true;
-  while (bRunning) {
+  gameData.running = true;
+  while (gameData.running) {
     frameStart = SDL_GetTicks();
     try {
       if(gameData.reload) {
