@@ -7,6 +7,7 @@ include(download_file)
 include(add_warning)
 
 find_package(fmt  REQUIRED)
+find_package(OpenGL REQUIRED OpenGL)
 find_package(SDL2 REQUIRED)
 find_package(SDL2_image REQUIRED)
 

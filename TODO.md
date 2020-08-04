@@ -8,4 +8,5 @@
 - [x] Create a GameData.
 - [x] Adding a snake texture.
 - [x] Control the snake head direction.
+- [ ] Adding OpenGL 3.2.
 

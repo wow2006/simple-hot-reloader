@@ -32,6 +32,7 @@ target_link_libraries(
   warning
   SDL2::SDL2
   SDL2::Image
+  OpenGL::OpenGL
   fmt::fmt-header-only
 )
 

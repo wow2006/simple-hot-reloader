@@ -18,16 +18,25 @@ constexpr auto cWidth = 800;
 constexpr auto cHeight = 600;
 
 using ProcessInputFunc = void (*)(GameData *pData);
-ProcessInputFunc processInput;
+static ProcessInputFunc processInput;
 
 using UpdateFunc = void (*)(GameData *pData);
-UpdateFunc update;
+static UpdateFunc update;
 
-using RendererFunc = void (*)(SDL_Renderer *pRenderer, const GameData *pData);
-RendererFunc renderer;
+using RendererFunc = void (*)(const GameData *pData);
+static RendererFunc renderer;
 
-static void updateDLL() {
+using InitializeFunc = void (*)(GameData *pData);
+static InitializeFunc initialize;
+
+using CleanFunc = void (*)(GameData *pData);
+static CleanFunc clean;
+
+static void updateDLL(GameData *pGameData) {
   static void *pDLL = nullptr;
+  if(pDLL != nullptr) {
+    clean(pGameData);
+  }
   SDL_UnloadObject(pDLL);
   auto pObject = SDL_LoadObject("lib/libhot-reload-lib.so");
   if(pObject == nullptr) {
@@ -45,10 +54,24 @@ static void updateDLL() {
   if(processInputFunc == nullptr) {
     throw std::runtime_error("Can not load \"render\"");
   }
+
+  auto initializeFunc = SDL_LoadFunction(pObject, "initialize");
+  if(initializeFunc == nullptr) {
+    throw std::runtime_error("Can not load \"initialize\"");
+  }
+  auto cleanFunc = SDL_LoadFunction(pObject, "clean");
+  if(cleanFunc == nullptr) {
+    throw std::runtime_error("Can not load \"clean\"");
+  }
+
   pDLL = pObject;
   processInput = reinterpret_cast<ProcessInputFunc>(processInputFunc);
   update       = reinterpret_cast<UpdateFunc>(updateFunc);
   renderer     = reinterpret_cast<RendererFunc>(renderFunc);
+  initialize   = reinterpret_cast<InitializeFunc>(initializeFunc);
+  clean        = reinterpret_cast<CleanFunc>(cleanFunc);
+
+  initialize(pGameData);
 
   const time_t curr_time = time(nullptr);
   const tm *tm_local = localtime(&curr_time);
@@ -56,11 +79,14 @@ static void updateDLL() {
     " Load DLL successfully\n";
 }
 
-static
-void LogOutputFunction(void*           userdata,
+static void LogOutputFunction(void*           userdata,
                        int             category,
                        SDL_LogPriority priority,
                        const char*     message) {
+  (void)userdata;
+  (void)category;
+  (void)priority;
+  (void)message;
   std::cerr << "SDL_Message: " << message << '\n';
 }
 
@@ -80,7 +106,67 @@ static auto loadImage(const char* path, SDL_Renderer *pRenderer) -> SDL_Texture*
   return pTexture;
 }
 
-int main(int argc, char *argv[]) {
+static bool initializeOpenGL(GameData *pGameData) {
+  const auto pglGenBuffers = SDL_GL_GetProcAddress("glGenBuffers");
+  if(pglGenBuffers == nullptr) {
+    std::cerr << "ERROR: Can not load glGenBuffers\n";
+    return false;
+  }
+  pGameData->gl.glGenBuffers = reinterpret_cast<glGenBuffersFunc>(pglGenBuffers);
+
+  const auto pglBindBuffer = SDL_GL_GetProcAddress("glBindBuffer");
+  if(pglBindBuffer == nullptr) {
+    std::cerr << "ERROR: Can not load glBindBuffer\n";
+    return false;
+  }
+  pGameData->gl.glBindBuffer = reinterpret_cast<glBindBufferFunc>(pglBindBuffer);
+
+  const auto pglBufferData = SDL_GL_GetProcAddress("glBufferData");
+  if(pglBufferData == nullptr) {
+    std::cerr << "ERROR: Can not load glBufferData\n";
+    return false;
+  }
+  pGameData->gl.glBufferData = reinterpret_cast<glBufferDataFunc>(pglBufferData);
+
+  const auto pglDeleteBuffers = SDL_GL_GetProcAddress("glDeleteBuffers");
+  if(pglDeleteBuffers == nullptr) {
+    std::cerr << "ERROR: Can not load glDeleteBuffers\n";
+    return false;
+  }
+  pGameData->gl.glDeleteBuffers = reinterpret_cast<glDeleteBuffersFunc>(pglDeleteBuffers);
+
+  const auto pglDrawArrays = SDL_GL_GetProcAddress("glDrawArrays");
+  if(pglDrawArrays == nullptr) {
+    std::cerr << "ERROR: Can not load glDeleteBuffers\n";
+    return false;
+  }
+  pGameData->gl.glDrawArrays = reinterpret_cast<glDrawArraysFunc>(pglDrawArrays);
+
+  const auto pglEnableVertexAttribArray = SDL_GL_GetProcAddress("glEnableVertexAttribArray");
+  if(pglEnableVertexAttribArray == nullptr) {
+    std::cerr << "ERROR: Can not load glEnableVertexAttribArray\n";
+    return false;
+  }
+  pGameData->gl.glEnableVertexAttribArray = reinterpret_cast<glEnableVertexAttribArrayFunc>(pglEnableVertexAttribArray);
+
+  const auto pglDisableVertexAttribArray = SDL_GL_GetProcAddress("glDisableVertexAttribArray");
+  if(pglDisableVertexAttribArray == nullptr) {
+    std::cerr << "ERROR: Can not load glDisableVertexAttribArray\n";
+    return false;
+  }
+  pGameData->gl.glDisableVertexAttribArray = reinterpret_cast<glDisableVertexAttribArrayFunc>(pglDisableVertexAttribArray);
+
+  const auto pglVertexAttribPointer = SDL_GL_GetProcAddress("glVertexAttribPointer");
+  if(pglVertexAttribPointer == nullptr) {
+    std::cerr << "ERROR: Can not load glVertexAttribPointer\n";
+    return false;
+  }
+  pGameData->gl.glVertexAttribPointer = reinterpret_cast<glVertexAttribPointerFunc>(pglVertexAttribPointer);
+
+  return true;
+}
+
+int main() {
   if (SDL_Init(SDL_INIT_VIDEO) != SDL::SUCCESS) {
     std::cerr << "Unable to initialize SDL: " << SDL_GetError() << '\n';
     return EXIT_FAILURE;
@@ -106,32 +192,59 @@ int main(int argc, char *argv[]) {
 
   SDL_LogSetOutputFunction(LogOutputFunction, nullptr);
 
+  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER,          1);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS,         SDL_GL_CONTEXT_DEBUG_FLAG);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,  SDL_GL_CONTEXT_PROFILE_CORE);
+
   auto pWindow = SDL_CreateWindow(
       "Hotreload",
       SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-      cWidth+1, cHeight+1, 0);
+      cWidth+1, cHeight+1, SDL_WINDOW_OPENGL);
   if (pWindow == nullptr) {
     std::cerr << "Unable to create SDL window: " << SDL_GetError() << '\n';
     return EXIT_FAILURE;
   }
 
-  auto pRenderer = SDL_CreateRenderer(pWindow, 1, SDL_RENDERER_ACCELERATED);
-  if(pRenderer == nullptr) {
-    std::cerr << "Unable to create SDL Renderer: " << SDL_GetError() << '\n';
+  const auto pContext = SDL_GL_CreateContext(pWindow);
+  if(pContext == nullptr) {
+    std::cerr << "Unable to create OpenGL Context!\n";
     return EXIT_FAILURE;
   }
 
-  const auto pAppleTexture = loadImage("apple.png", pRenderer);
-  if(pAppleTexture == nullptr) {
+  if(!initializeOpenGL(&gameData)) {
+    std::cerr << "Unable to initialize OpenGL!\n";
     return EXIT_FAILURE;
   }
-  gameData.pApple = pAppleTexture;
 
-  const auto pTexture = loadImage("snakeHead.png", pRenderer);
-  if(pTexture == nullptr) {
-    return EXIT_FAILURE;
-  }
-  gameData.pSnake = pTexture;
+  GLuint &vbo = gameData.vbo;
+  gameData.gl.glGenBuffers(1, &vbo);
+  gameData.gl.glBindBuffer(GL_ARRAY_BUFFER, vbo);
+  gameData.gl.glBufferData(GL_ARRAY_BUFFER, gameData.borders.size() * sizeof(float),
+                           gameData.borders.data(), GL_STATIC_DRAW);
+  gameData.gl.glEnableVertexAttribArray(0);
+  gameData.gl.glVertexAttribPointer(0, 2, GL_FLOAT, false, 0, nullptr);
+  gameData.gl.glDisableVertexAttribArray(0);
+  gameData.gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  //auto pRenderer = SDL_CreateRenderer(pWindow, 1, SDL_RENDERER_SOFTWARE);
+  //if(pRenderer == nullptr) {
+  //  std::cerr << "Unable to create SDL Renderer: " << SDL_GetError() << '\n';
+  //  return EXIT_FAILURE;
+  //}
+
+  //const auto pAppleTexture = loadImage("apple.png", pRenderer);
+  //if(pAppleTexture == nullptr) {
+  //  return EXIT_FAILURE;
+  //}
+  //gameData.pApple = pAppleTexture;
+
+  //const auto pTexture = loadImage("snakeHead.png", pRenderer);
+  //if(pTexture == nullptr) {
+  //  return EXIT_FAILURE;
+  //}
+  //gameData.pSnake = pTexture;
 
   std::mt19937 rng(16);
   std::uniform_int_distribution<int> gen(0, gameData.width/gameData.step); // uniform, unbiased
@@ -145,16 +258,16 @@ int main(int argc, char *argv[]) {
   }
 
   constexpr auto FPS = 60.F;
-  constexpr auto FrameDelay = 1000.F / FPS;
+  constexpr auto FrameDelay = static_cast<int>(1000.F / FPS);
   uint32_t frameStart = 0;
-  int32_t frameTime = 0;
+  uint32_t frameTime = 0;
 
   gameData.running = true;
   while (gameData.running) {
     frameStart = SDL_GetTicks();
     try {
       if(gameData.reload) {
-        updateDLL();
+        updateDLL(&gameData);
         gameData.reload = false;
       }
     } catch(const std::runtime_error& exp) {
@@ -163,19 +276,22 @@ int main(int argc, char *argv[]) {
 
     processInput(&gameData);
     update(&gameData);
-    renderer(pRenderer, &gameData);
+    renderer(&gameData);
 
+    SDL_GL_SwapWindow(pWindow);
     frameTime = SDL_GetTicks() - frameStart;
     if(FrameDelay > frameTime) {
       SDL_Delay(FrameDelay - frameTime);
     }
-    frameTime = SDL_GetTicks() - frameStart;
-    std::cout << "\rFrame time : " << frameTime << " ms, " << 1000.F / static_cast<float>(frameTime);
+    //frameTime = SDL_GetTicks() - frameStart;
+    //std::cout << "\rFrame time : " << frameTime << " ms, " << 1000.F / static_cast<float>(frameTime);
   }
 
-  SDL_DestroyTexture(gameData.pApple);
-  SDL_DestroyTexture(gameData.pSnake);
-  SDL_DestroyRenderer(pRenderer);
+  //SDL_DestroyTexture(gameData.pApple);
+  //SDL_DestroyTexture(gameData.pSnake);
+  //SDL_DestroyRenderer(pRenderer);
+  gameData.gl.glDeleteBuffers(1, &vbo);
+  SDL_GL_DeleteContext(pContext);
   SDL_DestroyWindow(pWindow);
   SDL_Quit();
 
