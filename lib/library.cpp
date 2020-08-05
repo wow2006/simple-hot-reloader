@@ -1,5 +1,6 @@
 // STL
 #include <array>
+#include <random>
 #include <iostream>
 // SDL2
 #include <SDL2/SDL.h>
@@ -41,7 +42,7 @@ void processInput(GameData *pData) {
         pData->snakeBody.push_back(pData->snakeHead);
         break;
       case SDLK_e:
-        pData->snakeHead = {1, 1};
+        //pData->snakeHead = {1, 1};
         pData->snakeBody.clear();
         pData->snakeBody.reserve(8);
         break;
@@ -52,13 +53,6 @@ void processInput(GameData *pData) {
 }
 
 void update(GameData *pData) {
-  for(auto& rect : pData->apples) {
-    rect.y += 1;
-    if(rect.y > pData->height) {
-      rect.y = 1;
-    }
-  }
-
   if(pData->movement != Movement::None) {
     auto lastRect = pData->snakeHead;
     if(pData->movement == Movement::Right) {
@@ -75,6 +69,27 @@ void update(GameData *pData) {
 
     for(auto& rect : pData->snakeBody) {
       std::swap(rect, lastRect);
+    }
+  }
+
+  std::cout << "Snake: " << pData->snakeBody.size() << '\n';
+
+  const SDL_Rect snakeRect = {pData->snakeHead.x, pData->snakeHead.y,
+                              pData->step-1, pData->step-1};
+  for(auto& apple : pData->apples) {
+    const SDL_Rect appleRect = {apple.x, apple.y, pData->step-1, pData->step-1};
+    if(SDL_HasIntersection(&snakeRect, &appleRect)) {
+      if(pData->snakeBody.size() < 8) {
+        if(pData->snakeBody.empty()) {
+          pData->snakeBody.push_back(pData->snakeHead);
+        } else {
+          pData->snakeBody.push_back(pData->snakeBody.back());
+        }
+      }
+
+      static std::mt19937 rng(16);
+      static std::uniform_int_distribution<int> gen(0, pData->width/pData->step); // uniform, unbiased
+      apple = {gen(rng) * pData->step, gen(rng) * pData->step};
     }
   }
 }
@@ -104,9 +119,9 @@ inline void drawGrid(SDL_Renderer *pRenderer, const GameData *pData) {
 }
 
 inline void drawApples(SDL_Renderer *pRenderer, const GameData *pData) {
-  for(const auto& rect : pData->apples) {
-    auto renderRect = rect;
-    const auto position = rect.y / pData->step;
+  for(const auto& apple : pData->apples) {
+    SDL_Rect renderRect = {apple.x, apple.y, pData->step-1, pData->step-1};
+    const auto position = apple.y / pData->step;
     renderRect.y        = position * pData->step;
     SDL_RenderCopy(pRenderer, pData->pApple, nullptr, &renderRect);
   }

@@ -35,7 +35,7 @@ struct GameData {
     SDL_Point{0, 0}
   };
 
-  std::array<SDL_Rect, 8> apples;
+  std::array<SDL_Point, 8> apples;
 
 };
 

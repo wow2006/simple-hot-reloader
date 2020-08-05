@@ -137,11 +137,10 @@ int main(int argc, char *argv[]) {
   std::mt19937 rng(16);
   std::uniform_int_distribution<int> gen(0, gameData.width/gameData.step); // uniform, unbiased
 
-  for(auto& rect : gameData.apples) {
+  for(auto& apple : gameData.apples) {
     const auto index    = gen(rng) * gameData.step;
-    rect = {
+    apple = {
       index, 1,
-      gameData.step - 1, gameData.step - 1
     };
   }
 
@@ -170,8 +169,8 @@ int main(int argc, char *argv[]) {
     if(FrameDelay > frameTime) {
       SDL_Delay(FrameDelay - frameTime);
     }
-    frameTime = SDL_GetTicks() - frameStart;
-    std::cout << "\rFrame time : " << frameTime << " ms, " << 1000.F / static_cast<float>(frameTime);
+    //frameTime = SDL_GetTicks() - frameStart;
+    //std::cout << "\rFrame time : " << frameTime << " ms, " << 1000.F / static_cast<float>(frameTime);
   }
 
   SDL_DestroyTexture(gameData.pApple);
