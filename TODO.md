@@ -8,4 +8,6 @@
 - [x] Create a GameData.
 - [x] Adding a snake texture.
 - [x] Control the snake head direction.
+- [x] Draw snake body.
+- [x] Snake body follow head.
 

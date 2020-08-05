@@ -22,20 +22,28 @@ void processInput(GameData *pData) {
         pData->reload = true;
         break;
       case SDLK_d:
-        pData->currentX += pData->step;
         pData->direction = Direction::Right;
+        pData->movement = Movement::Right;
         break;
       case SDLK_a:
-        pData->currentX -= pData->step;
         pData->direction = Direction::Left;
+        pData->movement = Movement::Left;
         break;
       case SDLK_w:
-        pData->currentY -= pData->step;
         pData->direction = Direction::Up;
+        pData->movement = Movement::Forward;
         break;
       case SDLK_s:
-        pData->currentY += pData->step;
         pData->direction = Direction::Down;
+        pData->movement = Movement::Backword;
+        break;
+      case SDLK_q:
+        pData->snakeBody.push_back(pData->snakeHead);
+        break;
+      case SDLK_e:
+        pData->snakeHead = {1, 1};
+        pData->snakeBody.clear();
+        pData->snakeBody.reserve(8);
         break;
       }
     }
@@ -48,6 +56,25 @@ void update(GameData *pData) {
     rect.y += 1;
     if(rect.y > pData->height) {
       rect.y = 1;
+    }
+  }
+
+  if(pData->movement != Movement::None) {
+    auto lastRect = pData->snakeHead;
+    if(pData->movement == Movement::Right) {
+      pData->snakeHead.x += pData->step;
+    } else if(pData->movement == Movement::Left) {
+      pData->snakeHead.x -= pData->step;
+    } else if(pData->movement == Movement::Forward) {
+      pData->snakeHead.y -= pData->step;
+    } else if(pData->movement == Movement::Backword) {
+      pData->snakeHead.y += pData->step;
+    }
+
+    pData->movement = Movement::None;
+
+    for(auto& rect : pData->snakeBody) {
+      std::swap(rect, lastRect);
     }
   }
 }
@@ -86,7 +113,7 @@ inline void drawApples(SDL_Renderer *pRenderer, const GameData *pData) {
 }
 
 inline void drawSnake(SDL_Renderer *pRenderer, const GameData *pData) {
-  const SDL_Rect rect = {pData->currentX, pData->currentY, pData->step - 1,
+  const SDL_Rect rect = {pData->snakeHead.x, pData->snakeHead.y, pData->step - 1,
                          pData->step - 1};
   auto angle = 0.0;
   if (pData->direction == Direction::Up) {
@@ -101,6 +128,11 @@ inline void drawSnake(SDL_Renderer *pRenderer, const GameData *pData) {
 
   SDL_RenderCopyEx(pRenderer, pData->pSnake, nullptr, &rect, angle, nullptr,
                    SDL_FLIP_NONE);
+  SDL_SetRenderDrawColor(pRenderer, 0, 255, 0, 255);
+  for(const auto& body : pData->snakeBody) {
+    const SDL_Rect bodyRect = {body.x, body.y, pData->step - 1, pData->step - 1};
+    SDL_RenderFillRect(pRenderer, &bodyRect);
+  }
 }
 
 void render(SDL_Renderer *pRenderer, const GameData *pData) {

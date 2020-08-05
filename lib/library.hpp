@@ -1,11 +1,12 @@
 #pragma once
 // STL
 #include <array>
+#include <vector>
 // SDL2
 #include <SDL2/SDL_render.h>
 
-enum Direction : uint8_t { Up, Down, Left, Right };
-
+enum class Direction : uint8_t { None, Up, Down, Left, Right };
+enum class Movement : uint8_t { None, Forward, Backword, Left, Right };
 
 struct GameData {
   bool running = false;
@@ -18,12 +19,13 @@ struct GameData {
   SDL_Color backgroundColor = SDL_Color{16, 16, 32, SDL_ALPHA_OPAQUE};
   SDL_Color forgroundColor  = SDL_Color{128, 128, 128, SDL_ALPHA_OPAQUE};
 
-  int currentX = 1;
-  int currentY = 1;
-  Direction direction = Direction::Up;
-
   SDL_Texture* pApple = nullptr;
   SDL_Texture* pSnake = nullptr;
+
+  Direction direction = Direction::Right;
+  Movement  movement  = Movement::None;
+  SDL_Point snakeHead = {1, 1};
+  std::vector<SDL_Point> snakeBody;
 
   std::array<SDL_Point, 5> borders {
     SDL_Point{0, 0},

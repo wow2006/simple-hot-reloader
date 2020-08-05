@@ -132,6 +132,7 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
   gameData.pSnake = pTexture;
+  gameData.snakeBody.reserve(8);
 
   std::mt19937 rng(16);
   std::uniform_int_distribution<int> gen(0, gameData.width/gameData.step); // uniform, unbiased
