@@ -10,4 +10,5 @@
 - [x] Control the snake head direction.
 - [x] Draw snake body.
 - [x] Snake body follow head.
+- [x] Draw Font.
 

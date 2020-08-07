@@ -10,6 +10,7 @@ target_link_libraries(
   PRIVATE
   warning
   SDL2::SDL2
+  SDL2_ttf
 )
 
 set_target_properties(

@@ -33,6 +33,7 @@ target_link_libraries(
   SDL2::SDL2
   SDL2::Image
   fmt::fmt-header-only
+  SDL2_ttf
 )
 
 target_compile_definitions(
