@@ -146,6 +146,10 @@ because not all systems place things in SDL/ (see FreeBSD).
 #]=======================================================================]
 
 # Define options for searching SDL2 Library in a custom path
+find_package(SDL2 QUIET CONFIG)
+if(TARGET SDL2::SDL2)
+  return()
+endif()
 
 set(SDL2_PATH "" CACHE STRING "Custom SDL2 Library path")
 
