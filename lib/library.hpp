@@ -11,8 +11,8 @@ enum class Direction : uint8_t { None, Up, Down, Left, Right };
 enum class Movement : uint8_t { None, Forward, Backword, Left, Right };
 
 struct TextureData {
-  SDL_Texture* pTexture;
-  SDL_Rect     rect;
+  SDL_Texture* pTexture = nullptr;
+  SDL_Rect     rect = {};
 };
 
 struct GameData {

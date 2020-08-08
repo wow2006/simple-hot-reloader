@@ -40,13 +40,13 @@ inline void drawGrid(SDL_Renderer *pRenderer, const GameData *pData) {
                          pData->forgroundColor.g, pData->forgroundColor.b,
                          pData->forgroundColor.a);
 
-  SDL_RenderDrawLines(pRenderer, pData->borders.data(), pData->borders.size());
+  SDL_RenderDrawLines(pRenderer, pData->borders.data(), static_cast<int>(pData->borders.size()));
 
-  for (uint32_t j = pData->step; j < pData->height; j += pData->step) {
+  for (uint32_t j = pData->step; j < static_cast<uint32_t>(pData->height); j += pData->step) {
     SDL_RenderDrawLine(pRenderer, 0, j, pData->width, j);
   }
 
-  for (uint32_t i = pData->step; i < pData->width; i += pData->step) {
+  for (uint32_t i = pData->step; i < static_cast<uint32_t>(pData->width); i += pData->step) {
     SDL_RenderDrawLine(pRenderer, i, 0, i, pData->height);
   }
 }
@@ -126,7 +126,6 @@ void firstInitialization(GameData *pData) {
     };
   }
 
-  const SDL_Color White = {255, 255, 255, 255};
   pData->pFont = nullptr;
   const std::string fontfile = "ubuntu.ttf";
   if (!(pData->pFont = TTF_OpenFont(fontfile.c_str(), 16))) {
@@ -134,9 +133,9 @@ void firstInitialization(GameData *pData) {
   }
 }
 
-void initialize(GameData *pData) {}
+void initialize(GameData* /*pData*/) {}
 
-void cleanup(GameData *pData) {}
+void cleanup(GameData* /*pData*/) {}
 
 void processInput(GameData *pData) {
   SDL_Event event;
@@ -234,8 +233,8 @@ void render(const GameData *pData) {
   const SDL_Color White = {255, 255, 255, 255};
   {
     char buffer[256];
-    sprintf(buffer, "Score: %d", pData->score);
-    SDL_Rect textRect = {0, 32};
+    sprintf(buffer, "Score: %lu", pData->score);
+    SDL_Rect textRect = {0, 32, 0, 0};
     const auto pTextSurface = TTF_RenderText_Solid(pData->pFont, buffer, White);
     TTF_SizeText(pData->pFont, buffer, &textRect.w, &textRect.h);
     auto pTexture = SDL_CreateTextureFromSurface(pRenderer, pTextSurface);

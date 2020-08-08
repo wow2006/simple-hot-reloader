@@ -33,7 +33,7 @@ WatchFile::WatchFile(std::initializer_list<std::pair<std::string_view, Callback>
   mWorkingThread = std::make_unique<WorkingThread>([this]() {
       std::array<char, EVENT_BUF_LENGTH> buffer;
       const auto length = read(mHandler, buffer.data(), EVENT_BUF_LENGTH);
-      for(int index = 0; index < length;) {
+      for(uint32_t index = 0; index < length;) {
         const auto pEvent = reinterpret_cast<inotify_event *>(&buffer[index]);
         if(!(pEvent->mask & IN_ISDIR) && pEvent->mask & IN_MODIFY) {
           const auto wd = pEvent->wd;
@@ -41,7 +41,7 @@ WatchFile::WatchFile(std::initializer_list<std::pair<std::string_view, Callback>
           const auto& callback = value.second;
           callback();
         }
-        index += EVENT_SIZE + pEvent->len;
+        index += static_cast<uint32_t>(EVENT_SIZE + pEvent->len);
       }
   }, 500ms);
 }

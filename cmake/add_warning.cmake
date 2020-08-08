@@ -28,9 +28,14 @@ target_compile_options(
     -Wlogical-op # warn about logical operations being used where bitwise were probably wanted
     -Wuseless-cast # warn if you perform a cast to the same type
     -fdiagnostics-color=always
+    -Wno-sign-conversion
   >
   $<$<CXX_COMPILER_ID:Clang>:
     -Weverything
+    -Wno-padded
+    -Wno-sign-conversion
+    -Wno-sign-compare
+    -Wno-missing-prototypes
     -Wno-c++98-compat
     -Wno-c++98-compat-pedantic
     -fcolor-diagnostics
