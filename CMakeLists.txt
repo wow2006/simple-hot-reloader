@@ -14,3 +14,8 @@ find_package(SDL2_image REQUIRED)
 add_subdirectory(lib)
 add_subdirectory(app)
 
+file(
+  COPY
+  ubuntu.ttf scene.json
+  DESTINATION ${CMAKE_BINARY_DIR}
+)

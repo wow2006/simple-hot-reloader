@@ -56,7 +56,8 @@ inline void drawApples(SDL_Renderer *pRenderer, const GameData *pData) {
     SDL_Rect renderRect = {apple.x, apple.y, pData->step - 1, pData->step - 1};
     const auto position = apple.y / pData->step;
     renderRect.y = position * pData->step;
-    SDL_RenderCopy(pRenderer, pData->pApple, nullptr, &renderRect);
+    const auto& pTexture = pData->m_mTextures.at("apple");
+    SDL_RenderCopy(pRenderer, pTexture, nullptr, &renderRect);
   }
 }
 
@@ -74,7 +75,8 @@ inline void drawSnake(SDL_Renderer *pRenderer, const GameData *pData) {
     angle = 90;
   }
 
-  SDL_RenderCopyEx(pRenderer, pData->pSnake, nullptr, &rect, angle, nullptr,
+  const auto pSnake = pData->m_mTextures.at("snake");
+  SDL_RenderCopyEx(pRenderer, pSnake, nullptr, &rect, angle, nullptr,
                    SDL_FLIP_NONE);
   SDL_SetRenderDrawColor(pRenderer, 0, 255, 0, 255);
   for (const auto &body : pData->snakeBody) {
@@ -104,14 +106,14 @@ void firstInitialization(GameData *pData) {
   if (pAppleTexture == nullptr) {
     throw std::runtime_error("Can not create Texture \"Apple\"!");
   }
-  pData->pApple = pAppleTexture;
+  pData->m_mTextures.insert_or_assign("apple", pAppleTexture);
 
   const auto& snake = d["root"]["snake"]["head"];
   const auto pTexture = loadImage(snake["texture"].GetString(), pRenderer);
   if (pTexture == nullptr) {
     throw std::runtime_error("Can not create Texture \"Snake head\"!");
   }
-  pData->pSnake = pTexture;
+  pData->m_mTextures.insert_or_assign("snake", pTexture);
   pData->snakeBody.reserve(8);
 
   std::mt19937 rng(16);
