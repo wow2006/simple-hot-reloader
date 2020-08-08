@@ -18,38 +18,70 @@ constexpr int SUCCESS = 0;
 constexpr auto cWidth = 800;
 constexpr auto cHeight = 600;
 
+using FirstInitializationFunc = void (*)(GameData *);
+static FirstInitializationFunc firstInitialization;
+
+using InitializeFunc = void (*)(GameData *);
+static InitializeFunc initialize;
+
 using ProcessInputFunc = void (*)(GameData *pData);
 static ProcessInputFunc processInput;
 
 using UpdateFunc = void (*)(GameData *pData);
 static UpdateFunc update;
 
-using RendererFunc = void (*)(SDL_Renderer *pRenderer, const GameData *pData);
+using RendererFunc = void (*)(const GameData *pData);
 static RendererFunc renderer;
+
+using CleanupFunc = void (*)(GameData *);
+static CleanupFunc cleanup;
 
 static void updateDLL() {
   static void *pDLL = nullptr;
   SDL_UnloadObject(pDLL);
+
   auto pObject = SDL_LoadObject("lib/libhot-reload-lib.so");
   if (pObject == nullptr) {
     throw std::runtime_error("Can not load so");
   }
+
+  auto firstInitializationFunc = SDL_LoadFunction(pObject, "firstInitialization");
+  if (firstInitializationFunc == nullptr) {
+    throw std::runtime_error("Can not load \"firstInitialization\"");
+  }
+
+  auto initializeFunc = SDL_LoadFunction(pObject, "initialize");
+  if (firstInitializationFunc == nullptr) {
+    throw std::runtime_error("Can not load \"initialize\"");
+  }
+
   auto processInputFunc = SDL_LoadFunction(pObject, "processInput");
   if (processInputFunc == nullptr) {
     throw std::runtime_error("Can not load \"processInput\"");
   }
+
   auto updateFunc = SDL_LoadFunction(pObject, "update");
   if (updateFunc == nullptr) {
     throw std::runtime_error("Can not load \"update\"");
   }
+
   auto renderFunc = SDL_LoadFunction(pObject, "render");
   if (processInputFunc == nullptr) {
     throw std::runtime_error("Can not load \"render\"");
   }
+
+  auto cleanupFunc = SDL_LoadFunction(pObject, "cleanup");
+  if (cleanupFunc == nullptr) {
+    throw std::runtime_error("Can not load \"cleanup\"");
+  }
+
   pDLL = pObject;
-  processInput = reinterpret_cast<ProcessInputFunc>(processInputFunc);
-  update = reinterpret_cast<UpdateFunc>(updateFunc);
-  renderer = reinterpret_cast<RendererFunc>(renderFunc);
+  firstInitialization = reinterpret_cast<FirstInitializationFunc>(firstInitializationFunc);
+  initialize          = reinterpret_cast<InitializeFunc>(initializeFunc);
+  processInput        = reinterpret_cast<ProcessInputFunc>(processInputFunc);
+  update              = reinterpret_cast<UpdateFunc>(updateFunc);
+  renderer            = reinterpret_cast<RendererFunc>(renderFunc);
+  cleanup             = reinterpret_cast<CleanupFunc>(cleanupFunc);
 
   const time_t curr_time = time(nullptr);
   const tm *tm_local = localtime(&curr_time);
@@ -65,45 +97,49 @@ static void LogOutputFunction(void *userdata, int category,
   std::cerr << "SDL_Message: " << message << '\n';
 }
 
-static auto loadImage(const char *path, SDL_Renderer *pRenderer)
-    -> SDL_Texture * {
-  const auto pImage = IMG_Load(path);
-  if (pImage == nullptr) {
-    fprintf(stderr, "Could not load image: %s\n", IMG_GetError());
-    return nullptr;
-  }
-
-  const auto pTexture = SDL_CreateTextureFromSurface(pRenderer, pImage);
-  if (pTexture == nullptr) {
-    fprintf(stderr, "Could not create texture: %s\n", SDL_GetError());
-  }
-
-  SDL_FreeSurface(pImage);
-  return pTexture;
-}
-
-int main(int argc, char *argv[]) {
-  (void)argc;
-  (void)argv;
+static void GameInitialization(GameData *pGameData) {
   if (SDL_Init(SDL_INIT_VIDEO) != SDL::SUCCESS) {
     std::cerr << "Unable to initialize SDL: " << SDL_GetError() << '\n';
-    return EXIT_FAILURE;
   }
 
   const auto imgInit = IMG_Init(IMG_INIT_PNG);
   if ((imgInit & IMG_INIT_PNG) != IMG_INIT_PNG) {
     std::cerr << "Unable to initialize IMG: " << IMG_GetError() << '\n';
-    return EXIT_FAILURE;
   }
 
   if (TTF_Init() < 0) {
     std::cerr << "Unable to initialize TTF: " << TTF_GetError() << '\n';
-    return EXIT_FAILURE;
   }
 
-  GameData gameData;
-  gameData.reload = true;
+  SDL_LogSetOutputFunction(LogOutputFunction, nullptr);
 
+  auto pWindow = SDL_CreateWindow("Hotreload", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, cWidth + 1, cHeight + 1, 0);
+  if (pWindow == nullptr) {
+    std::cerr << "Unable to create SDL window: " << SDL_GetError() << '\n';
+  }
+  pGameData->pWindow = pWindow;
+
+  auto pRenderer = SDL_CreateRenderer(pWindow, 1, SDL_RENDERER_ACCELERATED);
+  if (pRenderer == nullptr) {
+    std::cerr << "Unable to create SDL Renderer: " << SDL_GetError() << '\n';
+  }
+  pGameData->pRenderer = pRenderer;
+}
+
+static void GameCleaning(GameData *pGameData) {
+  SDL_DestroyRenderer(pGameData->pRenderer);
+  SDL_DestroyWindow(pGameData->pWindow);
+
+  IMG_Quit();
+  TTF_Quit();
+  SDL_Quit();
+}
+
+int main() {
+  GameData gameData;
+  GameInitialization(&gameData);
+
+  // TODO(Hussein): get files to watch from json
   const auto libraryFilePath =
       std::filesystem::path(BASE_DIR) / "lib" / "library.cpp";
   WatchFile file({{libraryFilePath.c_str(), [&gameData]() {
@@ -112,68 +148,26 @@ int main(int argc, char *argv[]) {
                      }
                    }}});
 
-  SDL_LogSetOutputFunction(LogOutputFunction, nullptr);
-
-  auto pWindow =
-      SDL_CreateWindow("Hotreload", SDL_WINDOWPOS_UNDEFINED,
-                       SDL_WINDOWPOS_UNDEFINED, cWidth + 1, cHeight + 1, 0);
-  if (pWindow == nullptr) {
-    std::cerr << "Unable to create SDL window: " << SDL_GetError() << '\n';
-    return EXIT_FAILURE;
-  }
-
-  auto pRenderer = SDL_CreateRenderer(pWindow, 1, SDL_RENDERER_ACCELERATED);
-  if (pRenderer == nullptr) {
-    std::cerr << "Unable to create SDL Renderer: " << SDL_GetError() << '\n';
-    return EXIT_FAILURE;
-  }
-
-  const auto pAppleTexture = loadImage("apple.png", pRenderer);
-  if (pAppleTexture == nullptr) {
-    return EXIT_FAILURE;
-  }
-  gameData.pApple = pAppleTexture;
-
-  const auto pTexture = loadImage("snakeHead.png", pRenderer);
-  if (pTexture == nullptr) {
-    return EXIT_FAILURE;
-  }
-  gameData.pSnake = pTexture;
-  gameData.snakeBody.reserve(8);
-
-  std::mt19937 rng(16);
-  std::uniform_int_distribution<int> gen(
-      0, gameData.width / gameData.step); // uniform, unbiased
-
-  for (auto &apple : gameData.apples) {
-    const auto index = gen(rng) * gameData.step;
-    apple = {
-        index,
-        1,
-    };
-  }
-
-  const SDL_Color White = {255, 255, 255, 255};
-  gameData.pFont = nullptr;
-  const std::string fontfile = "ubuntu.ttf";
-  if (!(gameData.pFont = TTF_OpenFont(fontfile.c_str(), 16))) {
-    std::cerr << "Error: Unable to open font\n";
-    return EXIT_FAILURE;
-  }
-
   constexpr auto FPS = 60.F;
   constexpr auto FrameDelay = static_cast<uint32_t>(1000.F / FPS);
   uint32_t frameStart = 0;
   uint32_t frameTime = 0;
 
-  gameData.mTextures.resize(2);
+  try {
+    updateDLL();
+    firstInitialization(&gameData);
+  } catch (const std::runtime_error &exp) {
+    std::cerr << exp.what() << '\n';
+  }
 
   gameData.running = true;
   while (gameData.running) {
     frameStart = SDL_GetTicks();
     try {
       if (gameData.reload) {
+        cleanup(&gameData);
         updateDLL();
+        initialize(&gameData);
         gameData.reload = false;
       }
     } catch (const std::runtime_error &exp) {
@@ -182,7 +176,7 @@ int main(int argc, char *argv[]) {
 
     processInput(&gameData);
     update(&gameData);
-    renderer(pRenderer, &gameData);
+    renderer(&gameData);
 
     frameTime = SDL_GetTicks() - frameStart;
     if (FrameDelay > frameTime) {
@@ -190,27 +184,20 @@ int main(int argc, char *argv[]) {
     }
     frameTime = SDL_GetTicks() - frameStart;
     char buffer[512];
-    sprintf(buffer, "%d ms, %F", frameTime, 1000.0 / static_cast<double>(frameTime));
+    sprintf(buffer, "%d ms, %F", frameTime,
+            1000.0 / static_cast<double>(frameTime));
 
-    auto& [pTexture, textRect] = gameData.mTextures.front();
+    const SDL_Color White = {255, 255, 255, 255};
+    auto &[pTexture, textRect] = gameData.debugInfo;
     SDL_DestroyTexture(pTexture);
-    const auto pTextSurface = TTF_RenderText_Solid(gameData.pFont, buffer, White);
+    const auto pTextSurface =
+        TTF_RenderText_Solid(gameData.pFont, buffer, White);
     TTF_SizeText(gameData.pFont, buffer, &textRect.w, &textRect.h);
-    pTexture = SDL_CreateTextureFromSurface(pRenderer, pTextSurface);
+    pTexture = SDL_CreateTextureFromSurface(gameData.pRenderer, pTextSurface);
     SDL_FreeSurface(pTextSurface);
   }
 
-
-  for(const auto& [pTexture, _] : gameData.mTextures) {
-    SDL_DestroyTexture(pTexture);
-  }
-  SDL_DestroyTexture(gameData.pApple);
-  SDL_DestroyTexture(gameData.pSnake);
-  SDL_DestroyRenderer(pRenderer);
-  SDL_DestroyWindow(pWindow);
-  IMG_Quit();
-  TTF_Quit();
-  SDL_Quit();
+  GameCleaning(&gameData);
 
   return EXIT_SUCCESS;
 }

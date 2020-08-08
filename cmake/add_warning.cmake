@@ -32,6 +32,7 @@ target_compile_options(
   $<$<CXX_COMPILER_ID:Clang>:
     -Weverything
     -Wno-c++98-compat
+    -Wno-c++98-compat-pedantic
     -fcolor-diagnostics
   >
 )

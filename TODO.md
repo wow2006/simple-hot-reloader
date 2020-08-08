@@ -11,4 +11,5 @@
 - [x] Draw snake body.
 - [x] Snake body follow head.
 - [x] Draw Font.
+- [ ] Adding JSON for serialization/deserialization.
 

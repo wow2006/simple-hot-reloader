@@ -1,17 +1,30 @@
 // STL
 #include <array>
-#include <iostream>
 #include <random>
+#include <fstream>
+#include <iostream>
 // SDL2
 #include <SDL2/SDL.h>
+// rapidjson
+#include <rapidjson/document.h>
 // Internal
 #include "library.hpp"
 
-inline void DrawImage(SDL_Surface *pSource, SDL_Surface *pDestination, int x,
-                      int y) {
-  if (!pSource || !pDestination) {
-    return;
+inline auto loadImage(const char *path, SDL_Renderer *pRenderer)
+    -> SDL_Texture * {
+  const auto pImage = IMG_Load(path);
+  if (pImage == nullptr) {
+    fprintf(stderr, "Could not load image: %s\n", IMG_GetError());
+    return nullptr;
   }
+
+  const auto pTexture = SDL_CreateTextureFromSurface(pRenderer, pImage);
+  if (pTexture == nullptr) {
+    fprintf(stderr, "Could not create texture: %s\n", SDL_GetError());
+  }
+
+  SDL_FreeSurface(pImage);
+  return pTexture;
 }
 
 inline void drawBackground(SDL_Renderer *pRenderer, const GameData *pData) {
@@ -72,6 +85,58 @@ inline void drawSnake(SDL_Renderer *pRenderer, const GameData *pData) {
 }
 
 extern "C" {
+
+void firstInitialization(GameData *pData) {
+  const std::string jsonFileName = "scene.json";
+  std::ifstream inputStream(jsonFileName, std::ios::ate);
+  const auto fileSize = inputStream.tellg();
+  inputStream.seekg(0, std::ios::beg);
+  std::string buffer;
+  buffer.resize(static_cast<size_t>(fileSize)+1);
+  inputStream.read(buffer.data(), buffer.size());
+
+  rapidjson::Document d;
+  d.Parse(buffer.data());
+
+  const auto& apples = d["root"]["apples"];
+  const auto pRenderer = pData->pRenderer;
+  const auto pAppleTexture = loadImage(apples["texture"].GetString(), pRenderer);
+  if (pAppleTexture == nullptr) {
+    throw std::runtime_error("Can not create Texture \"Apple\"!");
+  }
+  pData->pApple = pAppleTexture;
+
+  const auto& snake = d["root"]["snake"]["head"];
+  const auto pTexture = loadImage(snake["texture"].GetString(), pRenderer);
+  if (pTexture == nullptr) {
+    throw std::runtime_error("Can not create Texture \"Snake head\"!");
+  }
+  pData->pSnake = pTexture;
+  pData->snakeBody.reserve(8);
+
+  std::mt19937 rng(16);
+  std::uniform_int_distribution<int> gen(
+      0, pData->width / pData->step); // uniform, unbiased
+
+  for (auto &apple : pData->apples) {
+    const auto index = gen(rng) * pData->step;
+    apple = {
+        index,
+        1,
+    };
+  }
+
+  const SDL_Color White = {255, 255, 255, 255};
+  pData->pFont = nullptr;
+  const std::string fontfile = "ubuntu.ttf";
+  if (!(pData->pFont = TTF_OpenFont(fontfile.c_str(), 16))) {
+    std::cerr << "Error: Unable to open font\n";
+  }
+}
+
+void initialize(GameData *pData) {}
+
+void cleanup(GameData *pData) {}
 
 void processInput(GameData *pData) {
   SDL_Event event;
@@ -159,14 +224,15 @@ void update(GameData *pData) {
   }
 }
 
-void render(SDL_Renderer *pRenderer, const GameData *pData) {
+void render(const GameData *pData) {
+  const auto pRenderer = pData->pRenderer;
   drawBackground(pRenderer, pData);
   drawGrid(pRenderer, pData);
   drawApples(pRenderer, pData);
   drawSnake(pRenderer, pData);
 
+  const SDL_Color White = {255, 255, 255, 255};
   {
-    const SDL_Color White = {255, 255, 255, 255};
     char buffer[256];
     sprintf(buffer, "Score: %d", pData->score);
     SDL_Rect textRect = {0, 32};
@@ -178,7 +244,8 @@ void render(SDL_Renderer *pRenderer, const GameData *pData) {
     SDL_DestroyTexture(pTexture);
   }
 
-  for (const auto &[pTexture, rect] : pData->mTextures) {
+  {
+    const auto& [pTexture, rect] = pData->debugInfo;
     SDL_RenderCopy(pRenderer, pTexture, nullptr, &rect);
   }
 

@@ -5,11 +5,19 @@ add_library(
   library.cpp
 )
 
+target_include_directories(
+  hot-reload-lib
+  PRIVATE
+  ${RAPIDJSON_INCLUDE_DIRS}
+)
+
 target_link_libraries(
   hot-reload-lib
   PRIVATE
   warning
   SDL2::SDL2
+  SDL2::Image
+  fmt::fmt-header-only
   SDL2_ttf
 )
 

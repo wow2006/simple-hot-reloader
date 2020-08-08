@@ -4,10 +4,16 @@
 #include <vector>
 // SDL2
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_image.h>
 #include <SDL2/SDL_ttf.h>
 
 enum class Direction : uint8_t { None, Up, Down, Left, Right };
 enum class Movement : uint8_t { None, Forward, Backword, Left, Right };
+
+struct TextureData {
+  SDL_Texture* pTexture;
+  SDL_Rect     rect;
+};
 
 struct GameData {
   bool running = false;
@@ -16,6 +22,9 @@ struct GameData {
   int step   = 40;
   int width  = 800;
   int height = 600;
+
+  SDL_Window *pWindow     = nullptr;
+  SDL_Renderer *pRenderer = nullptr;
 
   TTF_Font *pFont = nullptr;
   Uint64 score = 0;
@@ -26,12 +35,12 @@ struct GameData {
   SDL_Texture* pApple = nullptr;
   SDL_Texture* pSnake = nullptr;
 
-  std::vector<std::pair<SDL_Texture*, SDL_Rect>> mTextures;
-
   Direction direction = Direction::Right;
   Movement  movement  = Movement::None;
   SDL_Point snakeHead = {1, 1};
   std::vector<SDL_Point> snakeBody;
+
+  TextureData debugInfo;
 
   std::array<SDL_Point, 5> borders {
     SDL_Point{0, 0},
