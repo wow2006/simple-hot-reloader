@@ -19,6 +19,8 @@ file(
   DESTINATION ${CMAKE_BINARY_DIR}
 )
 
+find_package(Threads)
+
 add_executable(
   hot-reload-app
   main.cpp
@@ -30,10 +32,11 @@ target_link_libraries(
   hot-reload-app
   PUBLIC
   warning
+  SDL2_ttf
   SDL2::SDL2
   SDL2::Image
   fmt::fmt-header-only
-  SDL2_ttf
+  Threads::Threads
 )
 
 target_compile_definitions(
