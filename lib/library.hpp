@@ -10,17 +10,33 @@
 #include <SDL2/SDL_ttf.h>
 
 enum class Direction : uint8_t { None, Up, Down, Left, Right };
-enum class Movement : uint8_t { None, Forward, Backword, Left, Right };
+enum class Movement  : uint8_t { None, Forward, Backword, Left, Right };
+enum class GameState : uint8_t { Menu, Game, Dead };
 
 struct TextureData {
   SDL_Texture* pTexture = nullptr;
   SDL_Rect     rect = {};
 };
 
-struct GameData {
-  bool running = false;
-  bool reload  = false;
+struct MapData {
+  uint32_t width;
+  uint32_t height;
+  float    cellWidth;
+  float    cellHeight;
+};
 
+struct MenuItem {
+  std::string  text;
+  SDL_Texture* pTexture = nullptr;
+  SDL_Rect     textRect = {};
+};
+
+struct GameData {
+  bool running    = false;
+  bool reload     = false;
+  bool bShowDebug = true;
+
+  int speed  = 1;
   int step   = 40;
   int width  = 800;
   int height = 600;
@@ -28,7 +44,8 @@ struct GameData {
   SDL_Window   *pWindow   = nullptr;
   SDL_Renderer *pRenderer = nullptr;
 
-  TTF_Font *pFont = nullptr;
+  TTF_Font *pFont     = nullptr;
+  TTF_Font *pMenuFont = nullptr;
   Uint64 score = 0;
 
   SDL_Color backgroundColor = SDL_Color{16, 16, 32, SDL_ALPHA_OPAQUE};
@@ -52,5 +69,13 @@ struct GameData {
   std::array<SDL_Point, 8> apples;
 
   std::unordered_map<std::string, SDL_Texture*> m_mTextures;
+  std::array<MenuItem, 2> m_aMenu = {
+    MenuItem{"Start"},
+    MenuItem{"Quit"}
+  };
+
+  GameState state = GameState::Menu;
+
+  SDL_Point mousePosition;
 };
 

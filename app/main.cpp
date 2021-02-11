@@ -1,9 +1,9 @@
 // STL
-#include <cstdlib>
-#include <iostream>
 #include <random>
 #include <string>
 #include <vector>
+#include <cstdlib>
+#include <iostream>
 // fmt
 #include <fmt/format.h>
 // SDL2
@@ -137,6 +137,19 @@ static void GameCleaning(GameData *pGameData) {
   SDL_Quit();
 }
 
+static void drawFrameRate(GameData *pGameData, double frameTime, uint32_t framePerSec) {
+    char buffer[512];
+    sprintf(buffer, "%d ms, %F", frameTime, framePerSec);
+
+    const SDL_Color White = {255, 255, 255, 255};
+    auto &[pTexture, textRect] = pGameData->debugInfo;
+    SDL_DestroyTexture(pTexture);
+    const auto pTextSurface = TTF_RenderText_Solid(pGameData->pFont, buffer, White);
+    TTF_SizeText(pGameData->pFont, buffer, &textRect.w, &textRect.h);
+    pTexture = SDL_CreateTextureFromSurface(pGameData->pRenderer, pTextSurface);
+    SDL_FreeSurface(pTextSurface);
+}
+
 int main() {
   GameData gameData;
   try {
@@ -147,18 +160,17 @@ int main() {
   }
 
   // TODO(Hussein): get files to watch from json
-  const auto libraryFilePath =
-      std::filesystem::path(BASE_DIR) / "lib" / "library.cpp";
+  const auto libraryFilePath = std::filesystem::path(BASE_DIR) / "lib" / "library.cpp";
   WatchFile file({{libraryFilePath.c_str(), [&gameData]() {
                      if (std::system("ninja") == 0) {
                        gameData.reload = true;
                      }
                    }}});
 
-  constexpr auto FPS = 60.F;
+  constexpr auto FPS        = 60.F;
   constexpr auto FrameDelay = static_cast<uint32_t>(1000.F / FPS);
   uint32_t frameStart = 0;
-  uint32_t frameTime = 0;
+  uint32_t frameTime  = 0;
 
   try {
     updateDLL();
@@ -171,7 +183,7 @@ int main() {
   while (gameData.running) {
     frameStart = SDL_GetTicks();
     try {
-      if (gameData.reload) {
+      if(gameData.reload) {
         cleanup(&gameData);
         updateDLL();
         initialize(&gameData);
@@ -190,18 +202,8 @@ int main() {
       SDL_Delay(FrameDelay - frameTime);
     }
     frameTime = SDL_GetTicks() - frameStart;
-    char buffer[512];
-    sprintf(buffer, "%d ms, %F", frameTime,
-            1000.0 / static_cast<double>(frameTime));
-
-    const SDL_Color White = {255, 255, 255, 255};
-    auto &[pTexture, textRect] = gameData.debugInfo;
-    SDL_DestroyTexture(pTexture);
-    const auto pTextSurface =
-        TTF_RenderText_Solid(gameData.pFont, buffer, White);
-    TTF_SizeText(gameData.pFont, buffer, &textRect.w, &textRect.h);
-    pTexture = SDL_CreateTextureFromSurface(gameData.pRenderer, pTextSurface);
-    SDL_FreeSurface(pTextSurface);
+    const auto framePerSec = 1000.0 / static_cast<double>(frameTime);
+    drawFrameRate(&gameData, frameTime, framePerSec);
   }
 
   GameCleaning(&gameData);
